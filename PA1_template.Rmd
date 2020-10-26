@@ -8,18 +8,86 @@ output:
 
 ## Loading and preprocessing the data
 
+unzip file, read file with read.csv, check file structure, and change variable date to Date format
+
+```{r}
+unzip(zipfile = "activity.zip")
+activity <- read.csv("activity.csv")
+str(activity)
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+
+```
 
 
 ## What is mean total number of steps taken per day?
+calculate daily steps using tapply, plot with histogram, get the mean and median value
 
+```{r, fig.width= 5}
+daily_step <- tapply(activity$steps, activity$date, sum, na.rm = TRUE)
+hist(daily_step, breaks = 10, col = "skyblue1")
+noquote("Mean of total steps per day is: ") 
+mean(daily_step)
+noquote("Median of total steps per day is: ") 
+median(daily_step)
 
+```
 
 ## What is the average daily activity pattern?
+calculate averaged steps per interval with tapply, then averaged by days
+
+make a data frame with interval and averaged steps
+
+plot with line and find the max steps with which.max
+```{r}
+daily_pattern <- tapply(activity$steps, activity$interval, sum, na.rm = TRUE)
+daily_pattern <- data.frame(names(daily_pattern), daily_pattern/length(daily_step))
+names(daily_pattern) <- c("Time", "Steps")
+plot(daily_pattern$Time, daily_pattern$Steps, type = "l", xlab = "Time", ylab = "Steps", xaxt = 'n', col = "skyblue2")
+axis(1, at = seq(0, 2400, by = 400), labels = c("0:00", "4:00", "8:00", "12:00", "16:00", "20:00", "24:00"))
+noquote("The interval contains the max averaged number of steps:")
+daily_pattern[which.max(daily_pattern$Steps), 1]
 
 
-
+```
 ## Imputing missing values
+First find which columns contain NA value
 
+Replace NA vaule with mean value
+
+plot with histogram and recalculate mean and median
+```{r, fig.width = 5}
+library(dplyr)
+list_na <- colnames(activity[apply(activity, 2, anyNA)])
+list_na
+noquote("The total number of missing value in the dataset:")
+sum(is.na(activity[, colnames(activity) %in% list_na]))
+mean_missing <- mean(activity$steps, na.rm = TRUE)
+mean_missing
+new_activity <- activity %>% mutate(steps = ifelse(is.na(steps), mean_missing, steps))
+daily_step1 <- tapply(new_activity$steps, new_activity$date, sum, na.rm = TRUE)
+hist(daily_step1, breaks = 10, col = "deepskyblue1", xlab = "daily steps")
+noquote("Mean of total steps per day is: ") 
+mean(daily_step1)
+noquote("Median of total steps per day is: ") 
+median(daily_step1)
+imput <- ifelse(mean(daily_step1) > mean(daily_step), "increases", "decreases")
+noquote(paste(c("Imputing missing values", imput, "the total daily number of steps."), sep = " ", collapse = " "))
+
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+load lattice library
+
+mutate weekdays with weekdays(date)
+
+calculate average steps based on interval
+
+plot with xyplot, by weekdays, using layout to get 2 vertical panels, using type "l" to plot line
+```{r, fig.width = 5}
+library(lattice)
+new_activity <- new_activity %>% mutate(weekdays = ifelse(weekdays(date) %in% c("Saturday", "Sunday"), "weekend", "weekday"))
+new_activity1 <- new_activity %>% group_by(interval, weekdays) %>% summarise(average_steps = mean(steps))
+xyplot(average_steps ~ interval | weekdays, new_activity1, layout = c(1, 2), type = "l", ylab = "Number of steps")
+
+```
